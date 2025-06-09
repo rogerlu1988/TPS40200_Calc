@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TPS40200 Design Tool</title>
+  <link href="https://cdn.jsdelivr.net/npm/@mui/material@5.13.6/umd/material-ui.production.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mui/material@5.13.6/umd/material-ui.production.min.js"></script>
+  <style>
+    body {
+      font-family: Roboto, Arial, sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 2rem;
+    }
+    .mui-container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .output-box {
+      background: #f0f0f0;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 1rem;
+    }
+    .note {
+      background: #e3f2fd;
+      padding: 1rem;
+      border-left: 5px solid #2196f3;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="mui-container">
+    <h1>TPS40200 Input Capacitor Calculator</h1>
+
+    <div class="form-group">
+      <label for="i_in">Input Current (A):</label>
+      <input type="number" id="i_in" value="1" />
+    </div>
+
+    <div class="form-group">
+      <label for="vin">Input Voltage (V):</label>
+      <input type="number" id="vin" value="24" />
+    </div>
+
+    <div class="form-group">
+      <label for="fsw">Switching Frequency (kHz):</label>
+      <input type="number" id="fsw" value="200" />
+    </div>
+
+    <div class="form-group">
+      <label for="ripple">Desired Input Ripple Voltage (%):</label>
+      <input type="number" id="ripple" value="5" />
+    </div>
+
+    <button onclick="calculateInputCap()">Calculate Input Capacitance</button>
+    <div id="inputCapResult" class="output-box"></div>
+
+    <div class="note">
+      <strong>Note:</strong> This tool estimates the minimum input capacitance required to maintain a given ripple voltage at the input of a buck converter. Larger capacitance or lower ESR improves filtering.
+    </div>
+  </div>
+
+  <script>
+    function calculateInputCap() {
+      const Iin = parseFloat(document.getElementById('i_in').value);
+      const Vin = parseFloat(document.getElementById('vin').value);
+      const fsw_kHz = parseFloat(document.getElementById('fsw').value);
+      const ripple_percent = parseFloat(document.getElementById('ripple').value);
+
+      if (isNaN(Iin) || isNaN(Vin) || isNaN(fsw_kHz) || isNaN(ripple_percent)) {
+        document.getElementById('inputCapResult').innerHTML = 'Please enter all values correctly.';
+        return;
+      }
+
+      const fsw = fsw_kHz * 1000;
+      const Vripple = (ripple_percent / 100) * Vin;
+      const Cin = Iin / (fsw * Vripple);
+
+      document.getElementById('inputCapResult').innerHTML =
+        `<strong>Required Input Capacitance:</strong> ${(Cin * 1e6).toFixed(1)} µF`;
+    }
+  </script>
+</body>
+</html>
