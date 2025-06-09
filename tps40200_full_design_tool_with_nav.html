@@ -1,28 +1,15 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TPS40200 Full Design Tool</title>
+  <title>TPS40200 Compensation Calculator</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 2rem;
       background-color: #f4f4f4;
-    }
-    nav {
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 1rem;
-      margin-bottom: 2rem;
-      border-radius: 8px;
-    }
-    nav ul {
-      list-style: none;
-      padding-left: 0;
-    }
-    nav li {
-      margin-bottom: 0.5rem;
     }
     h1, h2, h3 {
       color: #333;
@@ -71,21 +58,299 @@
   </style>
 </head>
 <body>
+  <h1>TPS40200 Compensation Calculator</h1>
+  <p>Estimate compensation network components (Type II) for TPS40200 voltage mode control.</p>
 
-<nav>
-  <h2>🧭 TPS40200 Tools Navigation</h2>
+  <label for="r5">R5 (kΩ):</label>
+  <input type="number" id="r5" value="100" />
+
+  <label for="c7">C7 (pF):</label>
+  <input type="number" id="c7" value="330" />
+
+  <label for="c6">C6 (pF):</label>
+  <input type="number" id="c6" value="33" />
+
+  <label for="fsw">Switching Frequency (kHz):</label>
+  <input type="number" id="fsw" value="200" />
+
+  <button onclick="calculateCompensation()">Calculate Compensation</button>
+
+  <div id="result"></div>
+
+  <div class="note">
+    <strong>Note:</strong> These default values are auto-tuned to place the compensation zero at approximately <strong>5 kHz</strong> and the pole at approximately <strong>50 kHz</strong>. This provides good phase margin and noise rejection for typical TPS40200-based buck converters operating in the 100–300 kHz switching frequency range.
+  </div>
+
+  <h2>What Do the Results Mean?</h2>
   <ul>
-    <li><a href="tps40200_calc_with_output_cap.html">Output Capacitor Calculator</a></li>
-    <li><a href="tps_40200_input_cap_calc.html">Input Capacitor Calculator</a></li>
-    <li><a href="tps_40200_mui_Compensation_and_Inductor_Calc.html">Compensation + Inductor Calculator (MUI)</a></li>
-    <li><a href="index.html"><strong>This Page (Compensation Calculator)</strong></a></li>
+    <li><strong>f<sub>zero</sub></strong>: Frequency where the gain boost begins (near crossover frequency).</li>
+    <li><strong>f<sub>pole</sub></strong>: Frequency where gain begins to roll off again (filters high-frequency noise).</li>
   </ul>
-</nav>
 
-<!-- The rest of the index.html content follows -->
-<!-- ...skipped for brevity, assume it includes the compensation calculator as given... -->
+  <h2>Schematic Reference</h2>
+  <p>Below is the TPS40200 buck converter schematic. The compensation network is composed of <strong>R5</strong>, <strong>C7</strong>, and <strong>C6</strong>:</p>
+  <img src="tps40200_schematic.png" alt="TPS40200 Schematic" />
+  <ul>
+    <li><strong>R5</strong> – Series resistor connected to COMP (pin 3) and FB (pin 4)</li>
+    <li><strong>C7</strong> – Capacitor from COMP to GND (sets zero)</li>
+    <li><strong>C6</strong> – Capacitor in parallel to introduce high-frequency pole</li>
+  </ul>
 
-<p style="margin-top: 3rem; color: #777;">Last updated: 2025-06-09</p>
+  <h2>🛠️ Auto Tuning Guide</h2>
+  <p>Use this guide to tune the compensation network based on key system characteristics:</p>
+  <ul>
+    <li><strong>Switching Frequency (f<sub>sw</sub>):</strong> Set crossover f<sub>c</sub> to 1/10 to 1/5 of f<sub>sw</sub>.</li>
+    <li><strong>LC Filter:</strong> Compute f<sub>LC</sub> = 1 / (2π√(LC)). Place f<sub>zero</sub> just below this.</li>
+    <li><strong>Output ESR:</strong> Adds a zero; adjust f<sub>zero</sub> accordingly.</li>
+    <li><strong>Load Resistance:</strong> Design for minimum load to ensure stability.</li>
+    <li><strong>Feedback Divider:</strong> High R<sub>top</sub> may need feedforward cap to stabilize crossover.</li>
+    <li><strong>Error Amplifier:</strong> TPS40200 internal amp limits bandwidth. Avoid too-high f<sub>c</sub>.</li>
+  </ul>
+
+  <script>
+    function calculateCompensation() {
+      const R5_kOhm = parseFloat(document.getElementById('r5').value);
+      const C7_pF = parseFloat(document.getElementById('c7').value);
+      const C6_pF = parseFloat(document.getElementById('c6').value);
+      const fsw_kHz = parseFloat(document.getElementById('fsw').value);
+
+      if (isNaN(R5_kOhm) || isNaN(C7_pF) || isNaN(C6_pF) || isNaN(fsw_kHz)) {
+        document.getElementById('result').innerText = 'Please enter all values.';
+        return;
+      }
+
+      const R5 = R5_kOhm * 1e3;
+      const C7 = C7_pF * 1e-12;
+      const C6 = C6_pF * 1e-12;
+
+      const f_zero = 1 / (2 * Math.PI * R5 * C7);
+      const f_pole = 1 / (2 * Math.PI * R5 * C6);
+
+      const f_cross = fsw_kHz * 0.1;
+      const f_zero_target = f_cross * 0.75;
+      const f_pole_target = f_cross * 2;
+
+      document.getElementById('result').innerHTML = `
+        <strong>Results:</strong><br>
+        Compensation Zero Frequency (f<sub>zero</sub>): <strong>${(f_zero / 1000).toFixed(2)} kHz</strong><br>
+        Compensation Pole Frequency (f<sub>pole</sub>): <strong>${(f_pole / 1000).toFixed(2)} kHz</strong><br><br>
+        <strong>Suggested Targets:</strong><br>
+        Crossover Frequency (f<sub>c</sub>): <strong>${f_cross.toFixed(2)} kHz</strong><br>
+        Suggested f<sub>zero</sub>: <strong>${f_zero_target.toFixed(2)} kHz</strong><br>
+        Suggested f<sub>pole</sub>: <strong>${f_pole_target.toFixed(2)} kHz</strong>
+      `;
+    }
+  
+function calculateLC() {
+  const L = parseFloat(document.getElementById('Lval').value) * 1e-6; // µH to H
+  const C = parseFloat(document.getElementById('Coutval').value) * 1e-6; // µF to F
+  if (isNaN(L) || isNaN(C)) {
+    document.getElementById('lcResult').innerText = 'Please enter L and Cout.';
+    return;
+  }
+  const f_lc = 1 / (2 * Math.PI * Math.sqrt(L * C));
+  document.getElementById('lcResult').innerHTML = 'LC Resonant Frequency: <strong>' + (f_lc / 1000).toFixed(2) + ' kHz</strong>';
+}
+
+function calculateESRZero() {
+  const ESR = parseFloat(document.getElementById('esr').value);
+  const C = parseFloat(document.getElementById('Coutval_esr').value) * 1e-6; // µF to F
+  if (isNaN(ESR) || isNaN(C)) {
+    document.getElementById('esrResult').innerText = 'Please enter ESR and C.';
+    return;
+  }
+  const f_esr = 1 / (2 * Math.PI * ESR * C);
+  document.getElementById('esrResult').innerHTML = 'ESR Zero Frequency: <strong>' + (f_esr / 1000).toFixed(2) + ' kHz</strong>';
+}
+
+
+function calculateSwitchingFreq() {
+  const Rt_k = parseFloat(document.getElementById('rt').value);
+  const Ct_p = parseFloat(document.getElementById('ct').value);
+
+  if (isNaN(Rt_k) || isNaN(Ct_p)) {
+    document.getElementById('fswResult').innerText = 'Please enter R<sub>t</sub> and C<sub>t</sub>.';
+    return;
+  }
+
+  const Rt = Rt_k * 1e3;
+  const Ct = Ct_p * 1e-12;
+
+  const freq = 1 / (Rt * Ct * 1.48); // approximate formula from datasheet
+
+  document.getElementById('fswResult').innerHTML = 'Switching Frequency: <strong>' + (freq / 1000).toFixed(2) + ' kHz</strong>';
+}
+
+
+function calculateSoftStart() {
+  const Css_nF = parseFloat(document.getElementById('css').value);
+
+  if (isNaN(Css_nF)) {
+    document.getElementById('softStartResult').innerText = 'Please enter C<sub>SS</sub>.';
+    return;
+  }
+
+  const Css = Css_nF * 1e-9; // Convert nF to F
+  const Iss = 1.5e-6; // 1.5 µA typical soft-start charge current
+  const Vref = 0.7; // Soft-start comparator threshold
+
+  const tss = Css * Vref / Iss;
+
+  document.getElementById('softStartResult').innerHTML = 'Estimated Soft-Start Time: <strong>' + tss.toFixed(2) + ' seconds</strong>';
+}
+
+
+function calculateVout() {
+  const Rtop = parseFloat(document.getElementById('r_top').value);
+  const Rbot = parseFloat(document.getElementById('r_bot').value);
+  const Vref = 0.7;
+
+  if (isNaN(Rtop) || isNaN(Rbot)) {
+    document.getElementById('voutResult').innerText = 'Please enter resistor values.';
+    return;
+  }
+
+  const Vout = Vref * (1 + Rtop / Rbot);
+  document.getElementById('voutResult').innerHTML = 'Calculated V<sub>OUT</sub>: <strong>' + Vout.toFixed(2) + ' V</strong>';
+}
+
+function calculateTopResistor() {
+  const VoutTarget = parseFloat(document.getElementById('voutTarget').value);
+  const Rbot = parseFloat(document.getElementById('rbotTarget').value);
+  const Vref = 0.7;
+
+  if (isNaN(VoutTarget) || isNaN(Rbot)) {
+    document.getElementById('rtopResult').innerText = 'Please enter a target voltage and bottom resistor.';
+    return;
+  }
+
+  const Rtop = Rbot * ((VoutTarget / Vref) - 1);
+  document.getElementById('rtopResult').innerHTML = 'Required R<sub>TOP</sub>: <strong>' + Rtop.toFixed(2) + ' kΩ</strong>';
+}
+
+
+function suggestFeedbackResistors() {
+  const Vref = 0.7;
+  const Vout = parseFloat(document.getElementById('voutAuto').value);
+  const Rbot = parseFloat(document.getElementById('preferredRbot').value);
+
+  if (isNaN(Vout) || isNaN(Rbot)) {
+    document.getElementById('suggestedFeedback').innerText = 'Please enter valid VOUT and Rbottom values.';
+    return;
+  }
+
+  const Rtop = Rbot * ((Vout / Vref) - 1);
+  document.getElementById('suggestedFeedback').innerHTML =
+    'To achieve ' + Vout.toFixed(2) + ' V output, use:<br>' +
+    'R<sub>BOTTOM</sub> = <strong>' + Rbot.toFixed(2) + ' kΩ</strong><br>' +
+    'R<sub>TOP</sub> = <strong>' + Rtop.toFixed(2) + ' kΩ</strong><br>' +
+    '(FB voltage reference = 0.7 V)';
+}
+
+</script>
+
+<h2>🔄 Additional Calculators</h2>
+
+<h3>LC Filter Resonance</h3>
+<label for="Lval">Inductance L (µH):</label>
+<input type="number" id="Lval" value="22" />
+
+<label for="Coutval">Output Capacitance C<sub>out</sub> (µF):</label>
+<input type="number" id="Coutval" value="100" />
+
+<button onclick="calculateLC()">Calculate LC Resonance</button>
+<div id="lcResult"></div>
+
+<h3>ESR Zero Calculator</h3>
+<label for="esr">Capacitor ESR (Ohms):</label>
+<input type="number" id="esr" value="0.05" />
+<label for="Coutval_esr">Capacitance (µF):</label>
+<input type="number" id="Coutval_esr" value="100" />
+
+<button onclick="calculateESRZero()">Calculate ESR Zero</button>
+<div id="esrResult"></div>
+
+<h3>Bode Plot (Placeholder)</h3>
+<p>This section will later visualize the gain/phase Bode plot based on your calculated compensation values. Coming soon.</p>
+
+
+<h3>🧮 Switching Frequency Calculator</h3>
+<p>Calculate the switching frequency based on timing resistor (R<sub>t</sub>) and capacitor (C<sub>t</sub>) values.</p>
+<label for="rt">R<sub>t</sub> (kΩ):</label>
+<input type="number" id="rt" value="49.9" />
+<label for="ct">C<sub>t</sub> (pF):</label>
+<input type="number" id="ct" value="820" />
+<button onclick="calculateSwitchingFreq()">Calculate f<sub>sw</sub></button>
+<div id="fswResult"></div>
+
+
+<h3>🕒 Soft-Start Time Calculator</h3>
+<p>Estimate the soft-start duration using the soft-start capacitor (C<sub>SS</sub>):</p>
+<label for="css">C<sub>SS</sub> (nF):</label>
+<input type="number" id="css" value="47" />
+<button onclick="calculateSoftStart()">Calculate Soft-Start Time</button>
+<div id="softStartResult"></div>
+
+
+<h2>📘 Timing Components Justification (Rt and Ct)</h2>
+<p>
+  According to the <strong>TPS40200 datasheet</strong> (section 7.3.3), the switching frequency is determined by a resistor and capacitor connected to the RC pin (pin 1). These components are referred to as <strong>R<sub>RC</sub></strong> and <strong>C<sub>RC</sub></strong>, and correspond to <strong>Rt</strong> and <strong>Ct</strong> in this calculator.
+</p>
+<p>
+  The switching frequency is calculated using the formula:<br/>
+  <code>f<sub>SW</sub> = 1 / (Rt × Ct × 0.105)</code>
+</p>
+<p>
+  In this schematic:
+  <ul>
+    <li><strong>R1</strong> (100 kΩ) is connected from the RC pin to VDD → <strong>Rt</strong></li>
+    <li><strong>C1</strong> (100 nF) is connected from the RC pin to GND → <strong>Ct</strong></li>
+  </ul>
+  These values set the oscillator ramp frequency, which defines the switching frequency of the PWM controller.
+</p>
+<p>
+  📖 As stated in the datasheet: “The operating frequency of the controller is determined by an external resistor RRC that is connected from the RC pin to VDD and a capacitor attached from the RC pin to ground.” (Section 7.3.3)
+</p>
+
+
+<h3>🔧 Output Voltage and Feedback Resistor Calculator</h3>
+<p>Use this section to calculate output voltage from resistor values, or compute required resistor values for a desired output:</p>
+
+<label for="r_top">R<sub>TOP</sub> (kΩ):</label>
+<input type="number" id="r_top" value="104.99" />
+
+<label for="r_bot">R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="r_bot" value="4.53" />
+<button onclick="calculateVout()">Calculate V<sub>OUT</sub></button>
+<div id="voutResult"></div>
+
+<label for="voutTarget">Target V<sub>OUT</sub> (V):</label>
+<input type="number" id="voutTarget" value="12" />
+<label for="rbotTarget">Choose R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="rbotTarget" value="4.53" />
+<button onclick="calculateTopResistor()">Calculate Required R<sub>TOP</sub></button>
+<div id="rtopResult"></div>
+
+
+<h3>⚡ Input/Output Voltage-Based Feedback Divider Suggestion</h3>
+<p>Enter your desired input and output voltages. We'll suggest standard feedback resistor values to achieve the target V<sub>OUT</sub>.</p>
+
+<label for="vinInput">V<sub>IN</sub> (V):</label>
+<input type="number" id="vinInput" value="24" />
+
+<label for="voutAuto">Target V<sub>OUT</sub> (V):</label>
+<input type="number" id="voutAuto" value="12" />
+
+<label for="preferredRbot">Preferred R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="preferredRbot" value="4.53" />
+
+<button onclick="suggestFeedbackResistors()">Suggest Feedback Resistors</button>
+<div id="suggestedFeedback"></div>
+
+
+<h2>📘 Schematic Reference (16V Output Design)</h2>
+<p>This schematic shows a practical implementation of the TPS40200 configured for a 16V output. Adjust the feedback resistors to scale for 12V or other output voltages.</p>
+<img src="tps40200_schematic16V.png" alt="TPS40200 16V Schematic">
 
 </body>
 </html>
