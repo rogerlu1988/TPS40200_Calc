@@ -199,6 +199,54 @@ function calculateSoftStart() {
   document.getElementById('softStartResult').innerHTML = 'Estimated Soft-Start Time: <strong>' + tss.toFixed(2) + ' seconds</strong>';
 }
 
+
+function calculateVout() {
+  const Rtop = parseFloat(document.getElementById('r_top').value);
+  const Rbot = parseFloat(document.getElementById('r_bot').value);
+  const Vref = 0.7;
+
+  if (isNaN(Rtop) || isNaN(Rbot)) {
+    document.getElementById('voutResult').innerText = 'Please enter resistor values.';
+    return;
+  }
+
+  const Vout = Vref * (1 + Rtop / Rbot);
+  document.getElementById('voutResult').innerHTML = 'Calculated V<sub>OUT</sub>: <strong>' + Vout.toFixed(2) + ' V</strong>';
+}
+
+function calculateTopResistor() {
+  const VoutTarget = parseFloat(document.getElementById('voutTarget').value);
+  const Rbot = parseFloat(document.getElementById('rbotTarget').value);
+  const Vref = 0.7;
+
+  if (isNaN(VoutTarget) || isNaN(Rbot)) {
+    document.getElementById('rtopResult').innerText = 'Please enter a target voltage and bottom resistor.';
+    return;
+  }
+
+  const Rtop = Rbot * ((VoutTarget / Vref) - 1);
+  document.getElementById('rtopResult').innerHTML = 'Required R<sub>TOP</sub>: <strong>' + Rtop.toFixed(2) + ' kΩ</strong>';
+}
+
+
+function suggestFeedbackResistors() {
+  const Vref = 0.7;
+  const Vout = parseFloat(document.getElementById('voutAuto').value);
+  const Rbot = parseFloat(document.getElementById('preferredRbot').value);
+
+  if (isNaN(Vout) || isNaN(Rbot)) {
+    document.getElementById('suggestedFeedback').innerText = 'Please enter valid VOUT and Rbottom values.';
+    return;
+  }
+
+  const Rtop = Rbot * ((Vout / Vref) - 1);
+  document.getElementById('suggestedFeedback').innerHTML =
+    'To achieve ' + Vout.toFixed(2) + ' V output, use:<br>' +
+    'R<sub>BOTTOM</sub> = <strong>' + Rbot.toFixed(2) + ' kΩ</strong><br>' +
+    'R<sub>TOP</sub> = <strong>' + Rtop.toFixed(2) + ' kΩ</strong><br>' +
+    '(FB voltage reference = 0.7 V)';
+}
+
 </script>
 
 <h2>🔄 Additional Calculators</h2>
@@ -242,6 +290,62 @@ function calculateSoftStart() {
 <input type="number" id="css" value="47" />
 <button onclick="calculateSoftStart()">Calculate Soft-Start Time</button>
 <div id="softStartResult"></div>
+
+
+<h2>📘 Timing Components Justification (Rt and Ct)</h2>
+<p>
+  According to the <strong>TPS40200 datasheet</strong> (section 7.3.3), the switching frequency is determined by a resistor and capacitor connected to the RC pin (pin 1). These components are referred to as <strong>R<sub>RC</sub></strong> and <strong>C<sub>RC</sub></strong>, and correspond to <strong>Rt</strong> and <strong>Ct</strong> in this calculator.
+</p>
+<p>
+  The switching frequency is calculated using the formula:<br/>
+  <code>f<sub>SW</sub> = 1 / (Rt × Ct × 0.105)</code>
+</p>
+<p>
+  In this schematic:
+  <ul>
+    <li><strong>R1</strong> (100 kΩ) is connected from the RC pin to VDD → <strong>Rt</strong></li>
+    <li><strong>C1</strong> (100 nF) is connected from the RC pin to GND → <strong>Ct</strong></li>
+  </ul>
+  These values set the oscillator ramp frequency, which defines the switching frequency of the PWM controller.
+</p>
+<p>
+  📖 As stated in the datasheet: “The operating frequency of the controller is determined by an external resistor RRC that is connected from the RC pin to VDD and a capacitor attached from the RC pin to ground.” (Section 7.3.3)
+</p>
+
+
+<h3>🔧 Output Voltage and Feedback Resistor Calculator</h3>
+<p>Use this section to calculate output voltage from resistor values, or compute required resistor values for a desired output:</p>
+
+<label for="r_top">R<sub>TOP</sub> (kΩ):</label>
+<input type="number" id="r_top" value="104.99" />
+
+<label for="r_bot">R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="r_bot" value="4.53" />
+<button onclick="calculateVout()">Calculate V<sub>OUT</sub></button>
+<div id="voutResult"></div>
+
+<label for="voutTarget">Target V<sub>OUT</sub> (V):</label>
+<input type="number" id="voutTarget" value="12" />
+<label for="rbotTarget">Choose R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="rbotTarget" value="4.53" />
+<button onclick="calculateTopResistor()">Calculate Required R<sub>TOP</sub></button>
+<div id="rtopResult"></div>
+
+
+<h3>⚡ Input/Output Voltage-Based Feedback Divider Suggestion</h3>
+<p>Enter your desired input and output voltages. We'll suggest standard feedback resistor values to achieve the target V<sub>OUT</sub>.</p>
+
+<label for="vinInput">V<sub>IN</sub> (V):</label>
+<input type="number" id="vinInput" value="24" />
+
+<label for="voutAuto">Target V<sub>OUT</sub> (V):</label>
+<input type="number" id="voutAuto" value="12" />
+
+<label for="preferredRbot">Preferred R<sub>BOTTOM</sub> (kΩ):</label>
+<input type="number" id="preferredRbot" value="4.53" />
+
+<button onclick="suggestFeedbackResistors()">Suggest Feedback Resistors</button>
+<div id="suggestedFeedback"></div>
 
 </body>
 </html>
