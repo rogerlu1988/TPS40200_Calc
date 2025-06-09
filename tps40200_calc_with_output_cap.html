@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TPS40200 Compensation Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+    input[type="number"] {
+      padding: 0.5rem;
+      width: 100%;
+      max-width: 300px;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+    }
+    .result-box {
+      margin-top: 1rem;
+      background: #fff;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      max-width: 600px;
+    }
+  </style>
+</head>
+<body>
+  <h1>TPS40200 Output Capacitor Calculator</h1>
+  <p>Calculate the output capacitance required for a stable buck converter design using TPS40200.</p>
+
+  <label for="vout_oc">Output Voltage (V):</label>
+  <input type="number" id="vout_oc" value="12" />
+
+  <label for="vin_oc">Max Input Voltage (V):</label>
+  <input type="number" id="vin_oc" value="28" />
+
+  <label for="iout_oc">Max Output Current (A):</label>
+  <input type="number" id="iout_oc" value="2" />
+
+  <label for="fsw_oc">Switching Frequency (kHz):</label>
+  <input type="number" id="fsw_oc" value="200" />
+
+  <label for="vripple_oc">Ripple Voltage Target (V):</label>
+  <input type="number" id="vripple_oc" value="0.05" />
+
+  <button onclick="calculateOutputCap()">Calculate Output Capacitance</button>
+  <div id="outputCapResult" class="result-box"></div>
+
+  <script>
+    function calculateOutputCap() {
+      const vout = parseFloat(document.getElementById('vout_oc').value);
+      const vin = parseFloat(document.getElementById('vin_oc').value);
+      const iout = parseFloat(document.getElementById('iout_oc').value);
+      const fsw = parseFloat(document.getElementById('fsw_oc').value);
+      const vripple = parseFloat(document.getElementById('vripple_oc').value);
+
+      if (isNaN(vout) || isNaN(vin) || isNaN(iout) || isNaN(fsw) || isNaN(vripple)) {
+        document.getElementById('outputCapResult').innerText = 'Please enter all values.';
+        return;
+      }
+
+      const D = vout / vin;
+      const Cout = (iout * D) / (fsw * 1000 * vripple);
+
+      document.getElementById('outputCapResult').innerHTML = `
+        Required Output Capacitance: <strong>${(Cout * 1e6).toFixed(1)} µF</strong><br><br>
+        <strong>Example Calculation:</strong><br>
+        Duty Cycle (D) = 12V / 28V = 0.429<br>
+        Cout = (2A × 0.429) / (200kHz × 0.05V) ≈ <strong>85.8 µF</strong><br><br>
+        <strong>Recommended Setup:</strong><br>
+        - 2× 47 µF ceramic capacitors<br>
+        - or 1× 100 µF electrolytic + 1× 10 µF ceramic<br>
+        - Add 0.1 µF for high-frequency noise suppression
+      `;
+    }
+  </script>
+</body>
+</html>
